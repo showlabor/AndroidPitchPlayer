@@ -151,8 +151,6 @@ public class PitchPlayer implements Runnable {
                 writeOffset += writeableBytes;
             }
 
-
-
             if (writeOffset == mBufferSize) {
                 // The buffer is full. Submit it to the AudioTrack
                 mAudioTrack.write(writeBuffer, 0, mBufferSize);
@@ -181,7 +179,7 @@ public class PitchPlayer implements Runnable {
         mExtractor.release();
     }
 
-    void setRelativePlaybackSpeed(float speed) {
+    public void setRelativePlaybackSpeed(float speed) {
         mRelativePlaybackSpeed = speed;
         if (mAudioTrack != null) {
             mAudioTrack.setPlaybackRate((int) (mSrcRate * mRelativePlaybackSpeed));
@@ -194,7 +192,7 @@ public class PitchPlayer implements Runnable {
         }
     }
 
-    boolean isPlaying() {
+    public boolean isPlaying() {
         return isPlaying;
     }
 }
