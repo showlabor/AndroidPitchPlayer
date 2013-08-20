@@ -42,7 +42,7 @@ public class PitchPlayer implements Runnable {
     }
 
     private void prepare() {
-        // Setup a MediaExtractor to get information on the stream
+        // Setup a MediaExtractor to get information about the stream
         // and to get samples out of the stream
         mExtractor = new MediaExtractor();
         try {
@@ -91,12 +91,12 @@ public class PitchPlayer implements Runnable {
 
     public void run() {
         // We use a single thread here for decoding stream data and
-        // writing to the AudioTrack. Consider using seperate a thread for each task.
+        // writing to the AudioTrack. Consider using a seperate thread for each task.
         prepare();
         ByteBuffer[] inputBuffers = mCodec.getInputBuffers();
         ByteBuffer[] outBuffers = mCodec.getOutputBuffers();
         ByteBuffer activeOutBuffer = null; // The active output buffer
-        int activeIndex = 0; // Index of hte active buffer
+        int activeIndex = 0; // Index of the active buffer
 
         int availableOutBytes = 0;
         int writeableBytes = 0;
@@ -115,7 +115,9 @@ public class PitchPlayer implements Runnable {
                 int inIndex = mCodec.dequeueInputBuffer(TIMEOUT_US);
                 if (inIndex >= 0) {
                     ByteBuffer buffer = inputBuffers[inIndex];
+                    // Fill the buffer with stream data
                     int sampleSize = mExtractor.readSampleData(buffer, 0);
+                    // Pass the stream data to the codec for decoding: queueInputBuffer 
                     if (sampleSize < 0) {
                         // We have reached the end of the stream
                         mCodec.queueInputBuffer(inIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
@@ -170,6 +172,7 @@ public class PitchPlayer implements Runnable {
                 // IMPORTANT: Clear the active buffer!
                 activeOutBuffer.clear();
                 if (activeIndex >= 0) {
+                    // Give the buffer back to the codec
                     mCodec.releaseOutputBuffer(activeIndex, false);
                 }
             }
