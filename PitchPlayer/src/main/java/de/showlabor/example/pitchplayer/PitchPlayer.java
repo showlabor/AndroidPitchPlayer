@@ -101,7 +101,7 @@ public class PitchPlayer implements Runnable {
         int availableOutBytes = 0;
         int writeableBytes = 0;
         // writeBuffer stores the samples until they can be written out to the AudioTrack
-        final byte[] writeBuffer = new byte[mBufferSize]; 
+        final byte[] writeBuffer = new byte[mBufferSize];
         int writeOffset = 0;
 
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
