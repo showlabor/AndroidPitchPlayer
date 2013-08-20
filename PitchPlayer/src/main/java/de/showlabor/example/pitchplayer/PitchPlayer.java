@@ -35,15 +35,16 @@ public class PitchPlayer implements Runnable {
     private boolean isPlaying = false;
     private boolean doStop = false;
 
-    private final static long TIMEOUT_US = 100000;
+    private final static long TIMEOUT_US = 1000;
 
     public PitchPlayer(String path) {
         mPath = path;
     }
 
     private void prepare() {
+        // Setup a MediaExtractor to get information on the stream
+        // and to get samples out of the stream
         mExtractor = new MediaExtractor();
-
         try {
             mExtractor.setDataSource(mPath);
         } catch (IOException e) {
@@ -64,7 +65,7 @@ public class PitchPlayer implements Runnable {
                 // Select the first track for decoding
                 mExtractor.selectTrack(0);
                 mCodec.start(); // Fire up the codec
-                //Don't make the buffer size too small:
+                // Create an AudioTrack. Don't make the buffer size too small:
                 mBufferSize = 8 * AudioTrack.getMinBufferSize(44100, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT);
                 mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
                         44100,
@@ -72,6 +73,7 @@ public class PitchPlayer implements Runnable {
                         AudioFormat.ENCODING_PCM_16BIT,
                         mBufferSize,
                         AudioTrack.MODE_STREAM);
+                // Don't forget to start playing        
                 mAudioTrack.play();
             }
         }
@@ -88,6 +90,8 @@ public class PitchPlayer implements Runnable {
     }
 
     public void run() {
+        // We use a single thread here for decoding stream data and
+        // writing to the AudioTrack. Consider using seperate a thread for each task.
         prepare();
         ByteBuffer[] inputBuffers = mCodec.getInputBuffers();
         ByteBuffer[] outBuffers = mCodec.getOutputBuffers();
@@ -96,14 +100,16 @@ public class PitchPlayer implements Runnable {
 
         int availableOutBytes = 0;
         int writeableBytes = 0;
-        final byte[] writeBuffer = new byte[mBufferSize];
+        // writeBuffer stores the samples until they can be written out to the AudioTrack
+        final byte[] writeBuffer = new byte[mBufferSize]; 
         int writeOffset = 0;
 
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
 
         boolean EOS = false;
-
+        
         while (!Thread.interrupted() && !doStop) {
+            // Get PCM data from the stream
             if (!EOS) {
                 // Dequeue an input buffer
                 int inIndex = mCodec.dequeueInputBuffer(TIMEOUT_US);
@@ -122,6 +128,7 @@ public class PitchPlayer implements Runnable {
             }
 
             if (availableOutBytes == 0) {
+                // we don't have any samples available: Dequeue a new output buffer.
                 activeIndex = mCodec.dequeueOutputBuffer(info, TIMEOUT_US);
 
                 // outIndex might carry some information for us.
@@ -130,6 +137,7 @@ public class PitchPlayer implements Runnable {
                     outBuffers = mCodec.getOutputBuffers();
                     break;
                 case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
+                    // Update the playback rate
                     MediaFormat outFormat = mCodec.getOutputFormat();
                     mSrcRate = outFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
                     mAudioTrack.setPlaybackRate((int) (mSrcRate * mRelativePlaybackSpeed));
@@ -137,6 +145,7 @@ public class PitchPlayer implements Runnable {
                     // Nothing to do
                     break;
                 default:
+                    // set the activeOutBuffer
                     activeOutBuffer = outBuffers[activeIndex];
                     availableOutBytes = info.size;
                     assert info.offset == 0;
@@ -145,7 +154,7 @@ public class PitchPlayer implements Runnable {
 
             if (activeOutBuffer != null && availableOutBytes > 0) {
                 writeableBytes = Math.min(availableOutBytes, mBufferSize - writeOffset);
-                // Copy samples to writeBuffer
+                // Copy as many samples to writeBuffer as possible
                 activeOutBuffer.get(writeBuffer, writeOffset, writeableBytes);
                 availableOutBytes -= writeableBytes;
                 writeOffset += writeableBytes;
